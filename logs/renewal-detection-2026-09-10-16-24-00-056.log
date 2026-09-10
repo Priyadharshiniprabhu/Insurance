@@ -1,9 +1,0 @@
-2026-09-10 16:23:00.039 INFO  - =================================
-2026-09-10 16:23:00.039 INFO  - Renewal Detection Summary
-2026-09-10 16:23:00.039 INFO  - Policies Scanned : 23
-2026-09-10 16:23:00.040 INFO  - 30 Day Reminders : 0
-2026-09-10 16:23:00.040 INFO  - 15 Day Reminders : 0
-2026-09-10 16:23:00.040 INFO  - 7 Day Reminders : 0
-2026-09-10 16:23:00.040 INFO  - Overdue Reminders : 3
-2026-09-10 16:23:00.040 INFO  - Skipped Already Reminded : 6
-2026-09-10 16:23:00.040 INFO  - =================================
