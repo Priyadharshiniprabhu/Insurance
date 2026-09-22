@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -27,8 +28,6 @@ public class RenewalDetectionServiceImpl
         implements RenewalDetectionService {
 
     private static final Logger JOB_LOGGER = LoggerFactory.getLogger("RENEWAL_JOB");
-    private static final DateTimeFormatter LOG_ARCHIVE_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS");
 
     private final PolicyRepository policyRepository;
     private final ReminderOutboxRepository outboxRepository;
@@ -183,14 +182,28 @@ public class RenewalDetectionServiceImpl
 
         try {
             Files.createDirectories(logDirectory);
-            if (Files.exists(activeLog) && Files.size(activeLog) > 0) {
-                Path archive = logDirectory.resolve(
-                        "renewal-detection-" +
-                                LocalDateTime.now().format(LOG_ARCHIVE_FORMAT) +
-                                ".log");
-                Files.move(activeLog, archive);
+            try (var logFiles = Files.list(logDirectory)) {
+                logFiles
+                        .filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString()
+                                .startsWith("renewal-detection-"))
+                        .filter(path -> path.getFileName().toString().endsWith(".log"))
+                        .filter(path -> !path.equals(activeLog))
+                        .forEach(path -> {
+                            try {
+                                Files.deleteIfExists(path);
+                            } catch (IOException ex) {
+                                throw new IllegalStateException(
+                                        "Unable to remove old renewal detection log", ex);
+                            }
+                        });
             }
-            Files.writeString(activeLog, summary);
+            Files.writeString(
+                    activeLog,
+                    summary,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
         } catch (IOException ex) {
             throw new IllegalStateException(
                     "Unable to write renewal detection summary", ex);

@@ -1,6 +1,7 @@
 package com.fd.insurance.schedular;
 
 import com.fd.insurance.service.RenewalDetectionService;
+import com.fd.insurance.service.SchedulerConfigurationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -11,13 +12,14 @@ public class RenewalDetectionJobSchedular {
 
     private final RenewalDetectionService service;
 
-    public RenewalDetectionJobSchedular(RenewalDetectionService service) {
+    public RenewalDetectionJobSchedular(
+            RenewalDetectionService service,
+            SchedulerConfigurationService schedulerConfigurationService) {
         this.service = service;
         System.out.println("RenewalDetectionJob Bean Created");
     }
 
-    @Scheduled(cron = "0 * * * * *")
-    //@Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "#{@schedulerConfigurationService.getCronValue('RenewalDetectionJobSchedular')}")
     public void run() {
 
         System.out.println("================================");
