@@ -8,6 +8,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -79,6 +80,7 @@ public class ReminderOutboxRepositoryImpl implements ReminderOutboxRepository {
         entityManager.createNativeQuery("""
             DELETE FROM REMINDER_OUTBOX
             WHERE POLICY_NUMBER = :policyNumber
+            AND STATUS = 'PENDING'
             """)
                 .setParameter("policyNumber", policyNumber)
                 .executeUpdate();
@@ -91,8 +93,29 @@ public class ReminderOutboxRepositoryImpl implements ReminderOutboxRepository {
             SELECT r
             FROM ReminderOutbox r
             WHERE r.status = 'PENDING'
+            AND (r.nextRetryTimestamp IS NULL
+                 OR r.nextRetryTimestamp <= CURRENT_TIMESTAMP)
             ORDER BY r.id
             """, ReminderOutbox.class)
+                .setMaxResults(batchSize)
+                .getResultList();
+    }
+
+    @Override
+    public List<ReminderOutbox> findPendingEventsAfterId(
+            Long lastId,
+            int batchSize) {
+
+        return entityManager.createQuery("""
+            SELECT r
+            FROM ReminderOutbox r
+            WHERE r.id > :lastId
+              AND r.status = 'PENDING'
+              AND (r.nextRetryTimestamp IS NULL
+                   OR r.nextRetryTimestamp <= CURRENT_TIMESTAMP)
+            ORDER BY r.id
+            """, ReminderOutbox.class)
+                .setParameter("lastId", lastId)
                 .setMaxResults(batchSize)
                 .getResultList();
     }
@@ -120,6 +143,22 @@ public class ReminderOutboxRepositoryImpl implements ReminderOutboxRepository {
             SET RETRY_COUNT = RETRY_COUNT + 1
             WHERE ID = :id
             """)
+                .setParameter("id", id)
+                .executeUpdate();
+    }
+
+    @Override
+    @Transactional
+    public void updateNextRetryTimestamp(
+            Long id,
+            LocalDateTime nextRetryTimestamp) {
+
+        entityManager.createNativeQuery("""
+            UPDATE REMINDER_OUTBOX
+            SET NEXT_RETRY_TIMESTAMP = :nextRetryTimestamp
+            WHERE ID = :id
+            """)
+                .setParameter("nextRetryTimestamp", nextRetryTimestamp)
                 .setParameter("id", id)
                 .executeUpdate();
     }

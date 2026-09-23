@@ -93,6 +93,7 @@ public class PolicyServiceImpl implements PolicyService {
                         ? PolicyStatus.EXPIRED
                         : PolicyStatus.ACTIVE
         );
+        policy.setManualFollowUp(false);
 
         repository.save(policy);
     }
@@ -109,7 +110,7 @@ public class PolicyServiceImpl implements PolicyService {
     @Transactional
     public void renewPolicy(String policyNumber, PolicyRenewRequest request) {
 
-        Policy policy = repository.findByPolicyNumber(policyNumber)
+        Policy policy = repository.findByPolicyNumberForUpdate(policyNumber)
                 .orElseThrow(() -> new PolicyNotFoundException("Policy not found"));
 
         if (policy.getStatus() != PolicyStatus.EXPIRED
@@ -146,9 +147,7 @@ public class PolicyServiceImpl implements PolicyService {
                 repository
                         .findByPolicyNumber(policyNumber)
                         .orElseThrow(() ->
-                                new PolicyNotFoundException(
-                                        "Policy not found: "
-                                                + policyNumber));
+                                new PolicyNotFoundException("Policy not found: " + policyNumber));
 
         List<Object[]> historyRows = notificationLogRepository
                         .findHistoryByPolicyNumber(policyNumber);

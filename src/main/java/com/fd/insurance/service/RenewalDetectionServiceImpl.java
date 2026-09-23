@@ -20,14 +20,9 @@ import java.nio.file.StandardOpenOption;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Service
 public class RenewalDetectionServiceImpl
         implements RenewalDetectionService {
-
-    private static final Logger JOB_LOGGER = LoggerFactory.getLogger("RENEWAL_JOB");
 
     private final PolicyRepository policyRepository;
     private final ReminderOutboxRepository outboxRepository;
@@ -43,6 +38,12 @@ public class RenewalDetectionServiceImpl
     @Override
     @Transactional
     public void detectRenewals() {
+        detectRenewals(policyRepository.findPoliciesForReminderDetection());
+    }
+
+    @Override
+    @Transactional
+    public void detectRenewals(List<? extends Policy> policies) {
 
         int scannedPolicies = 0;
 
@@ -53,7 +54,6 @@ public class RenewalDetectionServiceImpl
 
         int skippedCount = 0;
 
-        List<Policy> policies = policyRepository.findPoliciesForReminderDetection();
         System.out.println("Policies Found = " + policies.size());
 
         LocalDate today = LocalDate.now();
@@ -68,37 +68,19 @@ public class RenewalDetectionServiceImpl
 
             if (policy.getStatus() == PolicyStatus.ACTIVE) {
 
-                if (days == 30) {
+                if (days >= 0) {
+                    if (days <= 7) {
 
-                    tier = ReminderTier.THIRTY_DAY;
+                        tier = ReminderTier.SEVEN_DAY;
 
-                } else if (days == 15) {
+                    } else if (days <= 15) {
 
-                    tier = ReminderTier.FIFTEEN_DAY;
+                        tier = ReminderTier.FIFTEEN_DAY;
 
-                } else if (days == 7) {
+                    } else if (days <= 30) {
 
-                    tier = ReminderTier.SEVEN_DAY;
-                }
-            }
-
-            if (policy.getStatus() == PolicyStatus.EXPIRED) {
-
-                LocalDate graceEndDate =
-                        policy.getEndDate()
-                                .plusDays(15);
-
-                if (today.isAfter(graceEndDate)) {
-
-                    policyRepository.updatePolicyStatus(
-                            policy.getPolicyNumber(),
-                            PolicyStatus.LAPSED);
-
-                    JOB_LOGGER.info(
-                            "Policy {} marked as LAPSED",
-                            policy.getPolicyNumber());
-
-                    continue;
+                        tier = ReminderTier.THIRTY_DAY;
+                    }
                 }
             }
 

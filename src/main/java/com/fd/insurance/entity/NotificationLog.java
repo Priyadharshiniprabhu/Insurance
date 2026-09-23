@@ -36,6 +36,9 @@ public class NotificationLog {
     @Column(name = "POLICY_NUMBER")
     private String policyNumber;
 
+    @Column(name = "REASON")
+    private String reason;
+
     // getters/setters
 
     public Long getId() {
@@ -92,5 +95,13 @@ public class NotificationLog {
 
     public void setPolicyNumber(String policyNumber){
         this.policyNumber = policyNumber;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
     }
 }

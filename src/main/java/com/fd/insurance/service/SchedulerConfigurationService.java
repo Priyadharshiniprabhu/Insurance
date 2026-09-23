@@ -12,8 +12,8 @@ import java.util.Optional;
 public class SchedulerConfigurationService {
 
     public static final String DAILY_REPORT_JOB = "DailyReportJobSchedular";
-    public static final String NOTIFICATION_JOB = "NotificationJobSchedular";
     public static final String RENEWAL_DETECTION_JOB = "RenewalDetectionJobSchedular";
+    public static final String POLICY_LAPSE_JOB = "PolicyLapseJobSchedular";
 
     private final SchedulerConfigurationRepository repository;
 
@@ -26,8 +26,8 @@ public class SchedulerConfigurationService {
     public void initializeDefaultConfigurations() {
         Map.of(
                 DAILY_REPORT_JOB, "0 5 0 * * *",
-                NOTIFICATION_JOB, "0 * * * * *",
-                RENEWAL_DETECTION_JOB, "0 * * * * *"
+                RENEWAL_DETECTION_JOB, "0 * * * * *",
+                POLICY_LAPSE_JOB, "0 * * * * *"
         ).forEach(this::createIfMissing);
     }
 
@@ -39,11 +39,18 @@ public class SchedulerConfigurationService {
     }
 
     private void createIfMissing(String name, String cronValue) {
-        SchedulerConfiguration schedulerConfig= repository.findByName(name).get();
-        String cronVal=schedulerConfig.getCronValue();
-        if (cronVal.isBlank()) {
-            schedulerConfig.setCronValue(cronValue);
-            repository.save(schedulerConfig);
+        Optional<SchedulerConfiguration> existing =
+                repository.findByName(name);
+
+        if (existing.isPresent()) {
+            SchedulerConfiguration schedulerConfig = existing.get();
+            if (schedulerConfig.getCronValue().isBlank()) {
+                schedulerConfig.setCronValue(cronValue);
+                repository.save(schedulerConfig);
+            }
+            return;
         }
+
+        repository.save(new SchedulerConfiguration(name, cronValue));
     }
 }

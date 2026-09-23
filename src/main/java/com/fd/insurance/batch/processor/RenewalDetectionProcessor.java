@@ -18,7 +18,7 @@ public class RenewalDetectionProcessor implements ItemProcessor<Policy, Policy> 
 
         if (policy.getStatus() == PolicyStatus.ACTIVE) {
 
-            if (days == 30 || days == 15 || days == 7) {
+            if (days >= 0 && days <= 30) {
                 policy.setStatus(PolicyStatus.RENEWAL_DUE);
             }
         }

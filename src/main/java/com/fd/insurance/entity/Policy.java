@@ -43,6 +43,9 @@ public class Policy {
     @Column(nullable=false)
     private PolicyStatus status;
 
+    @Column(name = "MANUAL_FOLLOW_UP", nullable = false)
+    private boolean manualFollowUp;
+
     public Long getId() {
         return id;
     }
@@ -121,6 +124,14 @@ public class Policy {
 
     public void setStatus(PolicyStatus status) {
         this.status = status;
+    }
+
+    public boolean isManualFollowUp() {
+        return manualFollowUp;
+    }
+
+    public void setManualFollowUp(boolean manualFollowUp) {
+        this.manualFollowUp = manualFollowUp;
     }
 
 }

@@ -27,11 +27,11 @@ public class DailyReportRepositoryImpl implements DailyReportRepository {
             LocalDateTime start,
             LocalDateTime end) {
         return entityManager.createNativeQuery("""
-                SELECT TIER, OUTCOME, COUNT(*)
+                SELECT TIER, OUTCOME, REASON, COUNT(*)
                 FROM NOTIFICATION_LOG
                 WHERE EVENT_TIME >= :start
                 AND EVENT_TIME < :end
-                GROUP BY TIER, OUTCOME
+                GROUP BY TIER, OUTCOME, REASON
                 """)
                 .setParameter("start", start)
                 .setParameter("end", end)

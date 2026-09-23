@@ -58,7 +58,7 @@ public class DailyReportServiceImpl implements DailyReportService {
                 for (Object[] row :
                         reportRepository.countNotificationsByTierAndOutcome(start, end)) {
                     writeRow(writer, reportDate, "NOTIFICATION",
-                            row[0], row[1], row[1], row[2]);
+                            row[0], row[1], row[2], row[3]);
                 }
 
                 for (Object[] row :
