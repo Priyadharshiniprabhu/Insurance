@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class SchedulerConfigurationService {
@@ -38,8 +39,11 @@ public class SchedulerConfigurationService {
     }
 
     private void createIfMissing(String name, String cronValue) {
-        if (repository.findByName(name).isEmpty()) {
-            repository.save(new SchedulerConfiguration(name, cronValue));
+        SchedulerConfiguration schedulerConfig= repository.findByName(name).get();
+        String cronVal=schedulerConfig.getCronValue();
+        if (cronVal.isBlank()) {
+            schedulerConfig.setCronValue(cronValue);
+            repository.save(schedulerConfig);
         }
     }
 }

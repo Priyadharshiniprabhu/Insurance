@@ -32,12 +32,11 @@ public class NotificationBatchConfig {
                 jobRepository)
                 .<ReminderOutbox,
                         ReminderOutbox>
-                        chunk(
-                        50,
-                        transactionManager)
+                        chunk(50)
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)
+                .transactionManager(transactionManager)
                 .build();
     }
 
