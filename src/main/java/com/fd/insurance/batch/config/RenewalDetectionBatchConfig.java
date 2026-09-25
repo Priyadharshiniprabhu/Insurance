@@ -8,8 +8,9 @@ import com.fd.insurance.batch.writer.NotificationWriter;
 import com.fd.insurance.batch.writer.RenewalDetectionWriter;
 import com.fd.insurance.entity.Policy;
 import com.fd.insurance.entity.ReminderOutbox;
-import com.fd.insurance.service.RenewalDetectionService;
 import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.configuration.annotation.EnableJdbcJobRepository;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
@@ -19,6 +20,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
+@EnableBatchProcessing
+@EnableJdbcJobRepository
 public class RenewalDetectionBatchConfig {
 
     @Bean
@@ -35,6 +38,7 @@ public class RenewalDetectionBatchConfig {
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)
+                .listener(writer)
                 .transactionManager(transactionManager)
                 .build();
     }

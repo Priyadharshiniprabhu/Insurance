@@ -16,11 +16,16 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 
 @Component
 public class RenewalDetectionJobSchedular {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(RenewalDetectionJobSchedular.class);
 
     private final JobOperator jobOperator;
     private final JobExplorer jobExplorer;
@@ -34,7 +39,7 @@ public class RenewalDetectionJobSchedular {
         this.jobOperator = jobOperator;
         this.jobExplorer = jobExplorer;
         this.renewalDetectionJob = renewalDetectionJob;
-        System.out.println("RenewalDetectionJob Bean Created");
+        log.info("RenewalDetectionJob Bean Created");
     }
 
     @Scheduled(cron = "#{@schedulerConfigurationService.getCronValue('RenewalDetectionJobSchedular')}")
@@ -46,14 +51,14 @@ public class RenewalDetectionJobSchedular {
             NoSuchJobExecutionException,
             NoSuchJobException {
 
-        System.out.println("================================");
-        System.out.println("Renewal Detection Job Started");
-        System.out.println("Time : " + LocalDateTime.now());
+        log.info("================================");
+        log.info("Renewal Detection Job Started");
+        log.info("Time : {}", LocalDateTime.now());
 
         launchOrRestart();
 
-        System.out.println("Renewal Detection Job Completed");
-        System.out.println("================================");
+        log.info("Renewal Detection Job Completed");
+        log.info("================================");
     }
 
     private void launchOrRestart()

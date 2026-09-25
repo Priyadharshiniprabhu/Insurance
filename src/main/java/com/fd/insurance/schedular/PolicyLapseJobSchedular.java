@@ -16,11 +16,16 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 
 @Component
 public class PolicyLapseJobSchedular {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(PolicyLapseJobSchedular.class);
 
     private final JobOperator jobOperator;
     private final JobExplorer jobExplorer;
@@ -34,7 +39,7 @@ public class PolicyLapseJobSchedular {
         this.jobOperator = jobOperator;
         this.jobExplorer = jobExplorer;
         this.policyLapseJob = policyLapseJob;
-        System.out.println("PolicyLapseJob Bean Created");
+        log.info("PolicyLapseJob Bean Created");
     }
 
     @Scheduled(cron = "#{@schedulerConfigurationService.getCronValue('PolicyLapseJobSchedular')}")
@@ -46,14 +51,14 @@ public class PolicyLapseJobSchedular {
             NoSuchJobExecutionException,
             NoSuchJobException {
 
-        System.out.println("================================");
-        System.out.println("Policy Lapse Job Started");
-        System.out.println("Time : " + LocalDateTime.now());
+        log.info("================================");
+        log.info("Policy Lapse Job Started");
+        log.info("Time : {}", LocalDateTime.now());
 
         launchOrRestart();
 
-        System.out.println("Policy Lapse Job Completed");
-        System.out.println("================================");
+        log.info("Policy Lapse Job Completed");
+        log.info("================================");
     }
 
     private void launchOrRestart()

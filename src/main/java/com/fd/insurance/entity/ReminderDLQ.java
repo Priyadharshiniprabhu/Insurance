@@ -1,6 +1,8 @@
 package com.fd.insurance.entity;
 
 import com.fd.insurance.enums.ChannelType;
+import com.fd.insurance.enums.NotificationReason;
+import com.fd.insurance.enums.NotificationStatus;
 import com.fd.insurance.enums.ReminderTier;
 import jakarta.persistence.*;
 
@@ -35,7 +37,12 @@ public class ReminderDLQ {
     private Integer retryCount;
 
     @Column(name = "LAST_ERROR")
-    private String lastError;
+    @Enumerated(EnumType.STRING)
+    private NotificationReason lastError;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "STATUS", nullable = false)
+    private NotificationStatus status;
 
     @Column(name = "MOVED_AT")
     private LocalDateTime movedAt;
@@ -96,12 +103,20 @@ public class ReminderDLQ {
         this.retryCount = retryCount;
     }
 
-    public String getLastError() {
+    public NotificationReason getLastError() {
         return lastError;
     }
 
-    public void setLastError(String lastError) {
+    public void setLastError(NotificationReason lastError) {
         this.lastError = lastError;
+    }
+
+    public NotificationStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(NotificationStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getMovedAt() {

@@ -40,44 +40,44 @@ public class DLQServiceImpl implements DLQService {
                                 new DLQRecordNotFoundException(
                                         "DLQ record not found"));
 
-        boolean exists =
-                outboxRepository.exists(
-                        dlqEvent.getPolicyNumber(),
-                        dlqEvent.getTier(),
-                        dlqEvent.getChannel());
-
-        if (exists) {
-
-            throw new RuntimeException(
-                    "Record is already available for processing.");
-        }
-
-        ReminderOutbox outbox =
-                new ReminderOutbox();
-
-        outbox.setPolicyNumber(
-                dlqEvent.getPolicyNumber());
-
-        outbox.setTier(
-                dlqEvent.getTier());
-
-        outbox.setChannel(dlqEvent.getChannel());
-
         String payload = dlqEvent.getPayload();
         if (payload == null || payload.isBlank()) {
             payload = "Policy Number : " + dlqEvent.getPolicyNumber();
         }
-        outbox.setPayload(payload);
 
-        outbox.setStatus("PENDING");
+        ReminderOutbox existingOutbox =
+                dlqEvent.getEventId() == null
+                        ? null
+                        : outboxRepository.findById(dlqEvent.getEventId());
 
-        outbox.setRetryCount(
-                0);
+        if (existingOutbox != null) {
+            outboxRepository.resetForRetry(
+                    existingOutbox.getId(),
+                    payload,
+                    0,
+                    LocalDateTime.now());
+        } else {
+            boolean exists =
+                    outboxRepository.exists(
+                            dlqEvent.getPolicyNumber(),
+                            dlqEvent.getTier(),
+                            dlqEvent.getChannel());
 
-        outbox.setNextRetryTimestamp(
-                LocalDateTime.now());
+            if (exists) {
+                throw new RuntimeException(
+                        "Record is already available for processing.");
+            }
 
-        outboxRepository.save(outbox);
+            ReminderOutbox outbox = new ReminderOutbox();
+            outbox.setPolicyNumber(dlqEvent.getPolicyNumber());
+            outbox.setTier(dlqEvent.getTier());
+            outbox.setChannel(dlqEvent.getChannel());
+            outbox.setPayload(payload);
+            outbox.setStatus("PENDING");
+            outbox.setRetryCount(0);
+            outbox.setNextRetryTimestamp(LocalDateTime.now());
+            outboxRepository.save(outbox);
+        }
 
         dlqRepository.deleteById(dlqEvent.getId());
     }

@@ -32,7 +32,8 @@ public class NotificationLogRepositoryImpl implements NotificationLogRepository 
                     CHANNEL,
                     TIER,
                     EVENT_TIME,
-                    OUTCOME
+                    STATUS,
+                    REASON
                 FROM NOTIFICATION_LOG
                 WHERE POLICY_NUMBER = :policyNumber
                 ORDER BY EVENT_TIME

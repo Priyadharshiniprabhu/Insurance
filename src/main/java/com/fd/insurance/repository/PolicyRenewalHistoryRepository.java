@@ -8,5 +8,6 @@ public interface PolicyRenewalHistoryRepository {
 
     void save(PolicyRenewalHistory history);
 
+    long countAll();
     long countRenewalsBetween(LocalDateTime start, LocalDateTime end);
 }

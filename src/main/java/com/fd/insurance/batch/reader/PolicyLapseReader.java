@@ -8,6 +8,7 @@ import org.springframework.batch.infrastructure.item.ItemReader;
 import org.springframework.batch.infrastructure.item.ItemStream;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.Iterator;
 
 @Component
@@ -41,6 +42,7 @@ public class PolicyLapseReader implements ItemReader<Policy>, ItemStream {
 
     @Override
     public void open(ExecutionContext context) {
+        policyRepository.markActivePoliciesExpired(LocalDate.now());
         lastId = context.getLong("policyLapse.lastId", 0L);
         policies = null;
     }

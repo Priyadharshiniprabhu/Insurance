@@ -10,6 +10,12 @@ import java.util.Optional;
 public interface PolicyRepository {
     void save(Policy policy);
 
+    long countAll();
+    long countByStatus(PolicyStatus status);
+    long countActiveExcludingUpdatedDate(LocalDate date);
+    long countActiveUpdatedOn(LocalDate date);
+    long countOverdue();
+
     Optional<Policy> findByPolicyNumber(String policyNumber);
     Optional<Policy> findByPolicyNumberForUpdate(String policyNumber);
     List<Policy> findPoliciesForReminderDetection();
@@ -28,5 +34,6 @@ public interface PolicyRepository {
 
     List<Policy> findExpiredPoliciesForLapse();
     List<Policy> findExpiredPoliciesForLapseAfterId(Long lastId, int batchSize);
+    int markActivePoliciesExpired(LocalDate today);
 
 }

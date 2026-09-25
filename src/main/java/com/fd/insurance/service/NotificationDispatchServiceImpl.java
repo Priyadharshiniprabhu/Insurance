@@ -4,6 +4,8 @@ import com.fd.insurance.entity.NotificationLog;
 import com.fd.insurance.entity.ReminderDLQ;
 import com.fd.insurance.entity.ReminderOutbox;
 import com.fd.insurance.enums.NotificationOutcome;
+import com.fd.insurance.enums.NotificationReason;
+import com.fd.insurance.enums.NotificationStatus;
 import com.fd.insurance.enums.PolicyStatus;
 import com.fd.insurance.repository.NotificationLogRepository;
 import com.fd.insurance.repository.PolicyRepository;
@@ -84,10 +86,12 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
             log.setEventId(event.getId());
             log.setChannel(event.getChannel());
             log.setTier(event.getTier());
-            log.setOutcome(outcome);
             log.setEventTime(LocalDateTime.now());
             log.setPolicyNumber(event.getPolicyNumber());
-            log.setReason(outcome.name());
+            log.setStatus(outcome == NotificationOutcome.SENT
+                    ? NotificationStatus.SENT
+                    : NotificationStatus.FAILED);
+            log.setReason(toReason(outcome));
 
             logRepository.save(log);
 
@@ -115,15 +119,16 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
                     dlq.setChannel(event.getChannel());
                     dlq.setTier(event.getTier());
                     dlq.setRetryCount(retryCount);
-                    dlq.setLastError(outcome.name());
+                    dlq.setLastError(toReason(outcome));
+                    dlq.setStatus(NotificationStatus.FAILED);
                     dlq.setMovedAt(LocalDateTime.now());
 
                     dlqRepository.save(dlq);
                 } else {
-                    long backoffMinutes = 1L << (retryCount - 1);
+                    long backoffSeconds = retryCount * 5L;
                     outboxRepository.updateNextRetryTimestamp(
                             event.getId(),
-                            LocalDateTime.now().plusMinutes(backoffMinutes));
+                            LocalDateTime.now().plusSeconds(backoffSeconds));
                 }
             }
         }
@@ -141,5 +146,14 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
 
         return policy.getPhone() == null
                 || !policy.getPhone().matches("^\\+?[0-9 ()-]{7,20}$");
+    }
+
+    private NotificationReason toReason(NotificationOutcome outcome) {
+        return switch (outcome) {
+            case SENT -> NotificationReason.OK;
+            case GATEWAY_TIMEOUT -> NotificationReason.GATEWAY_TIMEOUT;
+            case INVALID_CONTACT -> NotificationReason.INVALID_CONTACT;
+            case FAILED -> NotificationReason.INTERNAL_SERVER_ERROR;
+        };
     }
 }

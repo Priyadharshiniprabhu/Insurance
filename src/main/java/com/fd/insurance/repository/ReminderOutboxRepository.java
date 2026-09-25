@@ -23,6 +23,12 @@ public interface ReminderOutboxRepository {
 
         void updateNextRetryTimestamp(Long id, LocalDateTime nextRetryTimestamp);
 
+        void resetForRetry(
+                Long id,
+                String payload,
+                int retryCount,
+                LocalDateTime nextRetryTimestamp);
+
         void deleteById(Long id);
 
         ReminderOutbox findById(Long id);

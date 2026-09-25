@@ -7,8 +7,7 @@ import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 @Component
-public class NotificationProcessor
-        implements ItemProcessor<ReminderOutbox, ReminderOutbox> {
+public class NotificationProcessor implements ItemProcessor<ReminderOutbox, ReminderOutbox> {
 
     private final PolicyRepository policyRepository;
 

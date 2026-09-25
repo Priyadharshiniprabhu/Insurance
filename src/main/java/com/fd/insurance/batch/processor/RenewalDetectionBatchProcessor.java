@@ -5,8 +5,7 @@ import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 @Component
-public class RenewalDetectionBatchProcessor
-        implements ItemProcessor<Policy, Policy> {
+public class RenewalDetectionBatchProcessor implements ItemProcessor<Policy, Policy> {
 
     @Override
     public Policy process(Policy policy) {

@@ -165,6 +165,29 @@ public class ReminderOutboxRepositoryImpl implements ReminderOutboxRepository {
 
     @Override
     @Transactional
+    public void resetForRetry(
+            Long id,
+            String payload,
+            int retryCount,
+            LocalDateTime nextRetryTimestamp) {
+
+        entityManager.createNativeQuery("""
+            UPDATE REMINDER_OUTBOX
+            SET PAYLOAD = :payload,
+                STATUS = 'PENDING',
+                RETRY_COUNT = :retryCount,
+                NEXT_RETRY_TIMESTAMP = :nextRetryTimestamp
+            WHERE ID = :id
+            """)
+                .setParameter("payload", payload)
+                .setParameter("retryCount", retryCount)
+                .setParameter("nextRetryTimestamp", nextRetryTimestamp)
+                .setParameter("id", id)
+                .executeUpdate();
+    }
+
+    @Override
+    @Transactional
     public void deleteById(Long id) {
 
         entityManager.createNativeQuery("""

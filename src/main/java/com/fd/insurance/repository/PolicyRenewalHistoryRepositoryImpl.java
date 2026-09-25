@@ -22,6 +22,14 @@ public class PolicyRenewalHistoryRepositoryImpl
     }
 
     @Override
+    public long countAll() {
+        return entityManager.createQuery(
+                "SELECT COUNT(DISTINCT h.policyNumber) FROM PolicyRenewalHistory h",
+                Long.class)
+                .getSingleResult();
+    }
+
+    @Override
     public long countRenewalsBetween(LocalDateTime start, LocalDateTime end) {
         return entityManager.createQuery("""
                 SELECT COUNT(h)

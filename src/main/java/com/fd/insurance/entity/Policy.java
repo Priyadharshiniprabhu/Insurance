@@ -39,6 +39,9 @@ public class Policy {
     @Column(nullable = false)
     private LocalDate endDate;
 
+    @Column(name = "UPDATED_DATE")
+    private LocalDate updatedDate;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable=false)
     private PolicyStatus status;
@@ -116,6 +119,14 @@ public class Policy {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    public LocalDate getUpdatedDate() {
+        return updatedDate;
+    }
+
+    public void setUpdatedDate(LocalDate updatedDate) {
+        this.updatedDate = updatedDate;
     }
 
     public PolicyStatus getStatus() {

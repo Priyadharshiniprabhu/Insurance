@@ -8,4 +8,7 @@ public interface RenewalDetectionService {
         void detectRenewals();
 
         void detectRenewals(List<? extends Policy> policies);
+
+        RenewalDetectionSummary detectRenewalsAndGetSummary(
+                List<? extends Policy> policies);
 }

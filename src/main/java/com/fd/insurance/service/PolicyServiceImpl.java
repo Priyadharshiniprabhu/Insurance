@@ -5,6 +5,7 @@ import com.fd.insurance.dto.PolicyRenewRequest;
 import com.fd.insurance.dto.ReminderHistoryResponse;
 import com.fd.insurance.enums.ChannelType;
 import com.fd.insurance.enums.NotificationOutcome;
+import com.fd.insurance.enums.NotificationReason;
 import com.fd.insurance.enums.ReminderTier;
 import com.fd.insurance.exception.DuplicateCustomerException;
 import com.fd.insurance.exception.PolicyNotFoundException;
@@ -116,7 +117,7 @@ public class PolicyServiceImpl implements PolicyService {
         if (policy.getStatus() != PolicyStatus.EXPIRED
                 && policy.getStatus() != PolicyStatus.RENEWAL_DUE) {
 
-            throw new IllegalArgumentException("Only EXPIRED or RENEWAL_DUE policies can be renewed.");
+            throw new IllegalArgumentException("Policy has closed, Please contact the admin!");
         }
 
         LocalDate today = LocalDate.now();
@@ -166,7 +167,8 @@ public class PolicyServiceImpl implements PolicyService {
 
             item.setEventTime((LocalDateTime) row[3]);
 
-            item.setOutcome(NotificationOutcome.valueOf(row[4].toString()));
+            NotificationReason reason = NotificationReason.valueOf(row[5].toString());
+            item.setOutcome(toOutcome(reason));
 
             history.add(item);
         }
@@ -185,5 +187,14 @@ public class PolicyServiceImpl implements PolicyService {
         response.setReminderHistory(history);
 
         return response;
+    }
+
+    private NotificationOutcome toOutcome(NotificationReason reason) {
+        return switch (reason) {
+            case OK -> NotificationOutcome.SENT;
+            case GATEWAY_TIMEOUT -> NotificationOutcome.GATEWAY_TIMEOUT;
+            case INVALID_CONTACT -> NotificationOutcome.INVALID_CONTACT;
+            case INTERNAL_SERVER_ERROR -> NotificationOutcome.FAILED;
+        };
     }
 }
