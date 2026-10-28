@@ -20,6 +20,6 @@ public class DailyReportJobSchedular {
 
     @Scheduled(cron = "#{@schedulerConfigurationService.getCronValue('DailyReportJobSchedular')}")
     public void run() {
-        reportService.generateReport(LocalDate.now().minusDays(1));
+        reportService.generateReport(LocalDate.now());
     }
 }

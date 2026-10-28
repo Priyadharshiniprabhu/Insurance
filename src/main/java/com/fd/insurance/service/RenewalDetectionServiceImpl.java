@@ -8,26 +8,21 @@ import com.fd.insurance.enums.ReminderTier;
 import com.fd.insurance.repository.PolicyRepository;
 import com.fd.insurance.repository.ReminderOutboxRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 public class RenewalDetectionServiceImpl
         implements RenewalDetectionService {
 
-    private static final Logger JOB_LOGGER = LoggerFactory.getLogger("RENEWAL_JOB");
+    private static final Logger log =
+            LoggerFactory.getLogger(RenewalDetectionServiceImpl.class);
 
     private final PolicyRepository policyRepository;
     private final ReminderOutboxRepository outboxRepository;
@@ -43,24 +38,29 @@ public class RenewalDetectionServiceImpl
     @Override
     @Transactional
     public void detectRenewals() {
+        detectRenewals(policyRepository.findPoliciesForReminderDetection());
+    }
 
-        int scannedPolicies = 0;
+    @Override
+    @Transactional
+    public void detectRenewals(List<? extends Policy> policies) {
 
-        int thirtyDayCount = 0;
-        int fifteenDayCount = 0;
-        int sevenDayCount = 0;
-        int overdueCount = 0;
+        writeSummaryLog(detectRenewalsAndGetSummary(policies));
+    }
 
-        int skippedCount = 0;
+    @Override
+    @Transactional
+    public RenewalDetectionSummary detectRenewalsAndGetSummary(
+            List<? extends Policy> policies) {
 
-        List<Policy> policies = policyRepository.findPoliciesForReminderDetection();
-        System.out.println("Policies Found = " + policies.size());
+        RenewalDetectionSummary summary = new RenewalDetectionSummary();
+        log.info("Policies Found = {}", policies.size());
 
         LocalDate today = LocalDate.now();
 
         for (Policy policy : policies) {
 
-            scannedPolicies++;
+            summary.incrementScannedPolicies();
 
             ReminderTier tier = null;
 
@@ -68,43 +68,25 @@ public class RenewalDetectionServiceImpl
 
             if (policy.getStatus() == PolicyStatus.ACTIVE) {
 
-                if (days == 30) {
+                if (days >= 0) {
+                    if (days <= 7) {
 
-                    tier = ReminderTier.THIRTY_DAY;
+                        tier = ReminderTier.SEVEN_DAY;
 
-                } else if (days == 15) {
+                    } else if (days <= 15) {
 
-                    tier = ReminderTier.FIFTEEN_DAY;
+                        tier = ReminderTier.FIFTEEN_DAY;
 
-                } else if (days == 7) {
+                    } else if (days <= 30) {
 
-                    tier = ReminderTier.SEVEN_DAY;
+                        tier = ReminderTier.THIRTY_DAY;
+                    }
                 }
             }
 
             if (policy.getStatus() == PolicyStatus.EXPIRED) {
 
-                LocalDate graceEndDate =
-                        policy.getEndDate()
-                                .plusDays(15);
-
-                if (today.isAfter(graceEndDate)) {
-
-                    policyRepository.updatePolicyStatus(
-                            policy.getPolicyNumber(),
-                            PolicyStatus.LAPSED);
-
-                    JOB_LOGGER.info(
-                            "Policy {} marked as LAPSED",
-                            policy.getPolicyNumber());
-
-                    continue;
-                }
-            }
-
-            if (policy.getStatus() == PolicyStatus.EXPIRED) {
-
-                System.out.println("Expired Policy : " + policy.getPolicyNumber());
+                log.info("Expired Policy : {}", policy.getPolicyNumber());
 
                 LocalDate graceEndDate = policy.getEndDate().plusDays(15);
 
@@ -112,7 +94,7 @@ public class RenewalDetectionServiceImpl
 
                     tier = ReminderTier.OVERDUE;
 
-                    System.out.println("OVERDUE tier applied for " + policy.getPolicyNumber());
+                    log.info("OVERDUE tier applied for {}", policy.getPolicyNumber());
                 }
             }
 
@@ -129,90 +111,27 @@ public class RenewalDetectionServiceImpl
             boolean smsCreated = createOutboxRecord(policy, tier, ChannelType.SMS);
 
             if (emailCreated || smsCreated) {
-
-                switch (tier) {
-
-                    case THIRTY_DAY ->
-                            thirtyDayCount++;
-
-                    case FIFTEEN_DAY ->
-                            fifteenDayCount++;
-
-                    case SEVEN_DAY ->
-                            sevenDayCount++;
-
-                    case OVERDUE ->
-                            overdueCount++;
-                }
+                summary.incrementReminders(tier);
 
             } else {
-
-                skippedCount++;
+                summary.incrementSkippedAlreadyReminded();
             }
         }
 
-        writeSummaryLog(scannedPolicies, thirtyDayCount, fifteenDayCount,
-                sevenDayCount, overdueCount, skippedCount);
+        return summary;
     }
 
-    private void writeSummaryLog(
-            int scannedPolicies,
-            int thirtyDayCount,
-            int fifteenDayCount,
-            int sevenDayCount,
-            int overdueCount,
-            int skippedCount) {
-        Path logDirectory = Path.of("logs");
-        Path activeLog = logDirectory.resolve("renewal-detection.log");
-        String summary = String.format("""
-                %s INFO  - =================================
-                %s INFO  - Renewal Detection Summary
-                %s INFO  - Policies Scanned : %d
-                %s INFO  - 30 Day Reminders : %d
-                %s INFO  - 15 Day Reminders : %d
-                %s INFO  - 7 Day Reminders : %d
-                %s INFO  - Overdue Reminders : %d
-                %s INFO  - Skipped Already Reminded : %d
-                %s INFO  - =================================
-                """,
-                logTimestamp(), logTimestamp(), logTimestamp(), scannedPolicies,
-                logTimestamp(), thirtyDayCount, logTimestamp(), fifteenDayCount,
-                logTimestamp(), sevenDayCount, logTimestamp(), overdueCount,
-                logTimestamp(), skippedCount, logTimestamp());
-
-        try {
-            Files.createDirectories(logDirectory);
-            try (var logFiles = Files.list(logDirectory)) {
-                logFiles
-                        .filter(Files::isRegularFile)
-                        .filter(path -> path.getFileName().toString()
-                                .startsWith("renewal-detection-"))
-                        .filter(path -> path.getFileName().toString().endsWith(".log"))
-                        .filter(path -> !path.equals(activeLog))
-                        .forEach(path -> {
-                            try {
-                                Files.deleteIfExists(path);
-                            } catch (IOException ex) {
-                                throw new IllegalStateException(
-                                        "Unable to remove old renewal detection log", ex);
-                            }
-                        });
-            }
-            Files.writeString(
-                    activeLog,
-                    summary,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-        } catch (IOException ex) {
-            throw new IllegalStateException(
-                    "Unable to write renewal detection summary", ex);
-        }
-    }
-
-    private String logTimestamp() {
-        return LocalDateTime.now().format(
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"));
+    private void writeSummaryLog(RenewalDetectionSummary summary) {
+        log.info("=================================");
+        log.info("Renewal Detection Summary");
+        log.info("Policies Scanned : {}", summary.getScannedPolicies());
+        log.info("30 Day Reminders : {}", summary.getThirtyDayReminders());
+        log.info("15 Day Reminders : {}", summary.getFifteenDayReminders());
+        log.info("7 Day Reminders : {}", summary.getSevenDayReminders());
+        log.info("Overdue Reminders : {}", summary.getOverdueReminders());
+        log.info("Skipped Already Reminded : {}",
+                summary.getSkippedAlreadyReminded());
+        log.info("=================================");
     }
 
     private boolean createOutboxRecord(Policy policy, ReminderTier tier, ChannelType channel) {

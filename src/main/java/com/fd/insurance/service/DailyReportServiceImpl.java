@@ -2,6 +2,7 @@ package com.fd.insurance.service;
 
 import com.fd.insurance.repository.DailyReportRepository;
 import com.fd.insurance.repository.PolicyRenewalHistoryRepository;
+import com.fd.insurance.enums.ReminderTier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,7 +42,6 @@ public class DailyReportServiceImpl implements DailyReportService {
             policyCounts.put(row[0].toString(), ((Number) row[1]).longValue());
         }
         policyCounts.put("RENEWED", renewalHistoryRepository.countRenewalsBetween(start, end));
-
         try {
             Files.createDirectories(reportDirectory);
             Path reportFile = reportDirectory.resolve(
@@ -58,7 +59,7 @@ public class DailyReportServiceImpl implements DailyReportService {
                 for (Object[] row :
                         reportRepository.countNotificationsByTierAndOutcome(start, end)) {
                     writeRow(writer, reportDate, "NOTIFICATION",
-                            row[0], row[1], row[1], row[2]);
+                            row[0], row[1], row[2], row[3]);
                 }
 
                 for (Object[] row :
@@ -66,11 +67,62 @@ public class DailyReportServiceImpl implements DailyReportService {
                     writeRow(writer, reportDate, "NOTIFICATION",
                             row[0], "DEAD_LETTERED", row[1], row[2]);
                 }
+
+                writeFunnelRows(writer, reportDate, start, end);
             }
         } catch (IOException ex) {
             throw new IllegalStateException(
                     "Unable to write daily report for " + reportDate, ex);
         }
+    }
+
+    @Override
+    public byte[] generateAndReadReport(LocalDate reportDate) throws IOException {
+        generateReport(reportDate);
+        return Files.readAllBytes(reportDirectory.resolve(
+                "daily-report-" + reportDate + ".csv"));
+    }
+
+    private void writeFunnelRows(
+            BufferedWriter writer,
+            LocalDate reportDate,
+            LocalDateTime start,
+            LocalDateTime end) throws IOException {
+        Map<ReminderTier, Long> invalidContacts = countByTier(
+                reportRepository.countInvalidContactsByTier(start, end));
+        Map<ReminderTier, Long> deadLetters = countByTier(
+                reportRepository.countDeadLettersByTier(start, end));
+
+        Map<String, Long> policyFunnelCounts = new HashMap<>();
+        for (Object[] row : reportRepository.countPoliciesForFunnel(reportDate)) {
+            policyFunnelCounts.put(row[0].toString(), ((Number) row[1]).longValue());
+        }
+        writeRow(writer, reportDate, "FUNNEL", "",
+                "ACTIVE", "UPDATED_DATE", policyFunnelCounts.getOrDefault("ACTIVE", 0L));
+        writeRow(writer, reportDate, "FUNNEL", "",
+                "RENEWED", "UPDATED_DATE", policyFunnelCounts.getOrDefault("RENEWED", 0L));
+
+        for (ReminderTier tier : new ReminderTier[]{
+                ReminderTier.THIRTY_DAY,
+                ReminderTier.FIFTEEN_DAY,
+                ReminderTier.SEVEN_DAY}) {
+            writeRow(writer, reportDate, "FUNNEL", tier,
+                    "INVALID_CONTACT", "NOTIFICATION_LOG",
+                    invalidContacts.getOrDefault(tier, 0L));
+            writeRow(writer, reportDate, "FUNNEL", tier,
+                    "DEAD_LETTER", "REMINDER_DLQ",
+                    deadLetters.getOrDefault(tier, 0L));
+        }
+    }
+
+    private Map<ReminderTier, Long> countByTier(
+            Iterable<Object[]> rows) {
+        Map<ReminderTier, Long> counts = new EnumMap<>(ReminderTier.class);
+        for (Object[] row : rows) {
+            counts.put(ReminderTier.valueOf(row[0].toString()),
+                    ((Number) row[1]).longValue());
+        }
+        return counts;
     }
 
     private void writePolicyRow(

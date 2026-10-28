@@ -1,7 +1,8 @@
 package com.fd.insurance.entity;
 
 import com.fd.insurance.enums.ChannelType;
-import com.fd.insurance.enums.NotificationOutcome;
+import com.fd.insurance.enums.NotificationReason;
+import com.fd.insurance.enums.NotificationStatus;
 import com.fd.insurance.enums.ReminderTier;
 import jakarta.persistence.*;
 
@@ -26,17 +27,21 @@ public class NotificationLog {
     @Column(name = "TIER")
     private ReminderTier tier;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "OUTCOME")
-    private NotificationOutcome outcome;
-
     @Column(name = "EVENT_TIME")
     private LocalDateTime eventTime;
 
     @Column(name = "POLICY_NUMBER")
     private String policyNumber;
 
-    // getters/setters
+    @Enumerated(EnumType.STRING)
+    @Column(name = "REASON")
+    private NotificationReason reason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "STATUS")
+    private NotificationStatus status;
+
+// getters/setters
 
     public Long getId() {
         return id;
@@ -70,14 +75,6 @@ public class NotificationLog {
         this.tier = tier;
     }
 
-    public NotificationOutcome getOutcome() {
-        return outcome;
-    }
-
-    public void setOutcome(NotificationOutcome outcome) {
-        this.outcome = outcome;
-    }
-
     public LocalDateTime getEventTime() {
         return eventTime;
     }
@@ -92,5 +89,21 @@ public class NotificationLog {
 
     public void setPolicyNumber(String policyNumber){
         this.policyNumber = policyNumber;
+    }
+
+    public NotificationReason getReason() {
+        return reason;
+    }
+
+    public void setReason(NotificationReason reason) {
+        this.reason = reason;
+    }
+
+    public void setStatus(NotificationStatus status) {
+        this.status = status;
+    }
+
+    public NotificationStatus getStatus() {
+        return status;
     }
 }

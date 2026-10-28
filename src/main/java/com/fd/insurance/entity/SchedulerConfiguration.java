@@ -43,4 +43,8 @@ public class SchedulerConfiguration {
     public String getCronValue() {
         return cronValue;
     }
+
+    public void setCronValue(String cronValue) {
+        this.cronValue = cronValue;
+    }
 }

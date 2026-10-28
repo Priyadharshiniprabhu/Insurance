@@ -20,6 +20,78 @@ public class PolicyRepositoryImpl implements PolicyRepository {
     private EntityManager entityManager;
 
     @Override
+    public long countAll() {
+        return entityManager.createQuery(
+                "SELECT COUNT(p) FROM Policy p", Long.class)
+                .getSingleResult();
+    }
+
+    @Override
+    public long countByStatus(PolicyStatus status) {
+        return entityManager.createQuery(
+                "SELECT COUNT(p) FROM Policy p WHERE p.status = :status",
+                Long.class)
+                .setParameter("status", status)
+                .getSingleResult();
+    }
+
+    @Override
+    public long countActiveExcludingUpdatedDate(LocalDate date) {
+        return entityManager.createQuery("""
+                SELECT COUNT(p)
+                FROM Policy p
+                WHERE p.status = :active
+                  AND (p.updatedDate <> :date OR p.updatedDate IS NULL)
+                """, Long.class)
+                .setParameter("active", PolicyStatus.ACTIVE)
+                .setParameter("date", date)
+                .getSingleResult();
+    }
+
+    @Override
+    public long countActiveUpdatedOn(LocalDate date) {
+        return entityManager.createQuery("""
+                SELECT COUNT(p)
+                FROM Policy p
+                WHERE p.status = :active
+                  AND p.updatedDate = :date
+                """, Long.class)
+                .setParameter("active", PolicyStatus.ACTIVE)
+                .setParameter("date", date)
+                .getSingleResult();
+    }
+
+    @Override
+    public long countOverdue() {
+        return entityManager.createQuery("""
+                SELECT COUNT(p)
+                FROM Policy p
+                WHERE p.status IN (:expired, :lapsed)
+                """, Long.class)
+                .setParameter("expired", PolicyStatus.EXPIRED)
+                .setParameter("lapsed", PolicyStatus.LAPSED)
+                .getSingleResult();
+    }
+
+    @Override
+    public long countRenewalCandidatesDueBetween(
+            LocalDate startDate,
+            LocalDate endDate) {
+        return entityManager.createQuery("""
+                SELECT COUNT(p)
+                FROM Policy p
+                WHERE p.status IN (:active, :renewalDue)
+                  AND p.endDate >= :startDate
+                  AND p.endDate <= :endDate
+                """, Long.class)
+                .setParameter("active", PolicyStatus.ACTIVE)
+                .setParameter("renewalDue", PolicyStatus.RENEWAL_DUE)
+                .setParameter("startDate", startDate)
+                .setParameter("endDate", endDate)
+                .getSingleResult();
+    }
+
+    @Override
     public void save(Policy policy) {
 
         entityManager.createNativeQuery(
@@ -33,7 +105,9 @@ public class PolicyRepositoryImpl implements PolicyRepository {
                             premium_amount,
                             start_date,
                             end_date,
-                            status
+                            UPDATED_DATE,
+                            status,
+                            MANUAL_FOLLOW_UP
                         )
                         VALUES (
                             :policyNumber,
@@ -44,7 +118,9 @@ public class PolicyRepositoryImpl implements PolicyRepository {
                             :premiumAmount,
                             :startDate,
                             :endDate,
-                            :status
+                            :updatedDate,
+                            :status,
+                            :manualFollowUp
                         )
                         """
                 )
@@ -56,13 +132,25 @@ public class PolicyRepositoryImpl implements PolicyRepository {
                 .setParameter("premiumAmount", policy.getPremiumAmount())
                 .setParameter("startDate", policy.getStartDate())
                 .setParameter("endDate", policy.getEndDate())
+                .setParameter("updatedDate", policy.getUpdatedDate())
                 .setParameter("status", policy.getStatus().name())
+                .setParameter("manualFollowUp", policy.isManualFollowUp())
                 .executeUpdate();
     }
 
     @Override
     public Optional<Policy> findByPolicyNumber(String policyNumber) {
+        return findByPolicyNumber(policyNumber, false);
+    }
 
+    @Override
+    public Optional<Policy> findByPolicyNumberForUpdate(String policyNumber) {
+        return findByPolicyNumber(policyNumber, true);
+    }
+
+    private Optional<Policy> findByPolicyNumber(
+            String policyNumber,
+            boolean lockForUpdate) {
         List<Object[]> result = entityManager
                 .createNativeQuery(
                         """
@@ -76,10 +164,12 @@ public class PolicyRepositoryImpl implements PolicyRepository {
                             premium_amount,
                             start_date,
                             end_date,
-                            status
+                            UPDATED_DATE,
+                            status,
+                            manual_follow_up
                         FROM policies
                         WHERE policy_number = :policyNumber
-                        """
+                        """ + (lockForUpdate ? " FOR UPDATE" : "")
                 )
                 .setParameter("policyNumber", policyNumber)
                 .getResultList();
@@ -103,7 +193,9 @@ public class PolicyRepositoryImpl implements PolicyRepository {
         policy.setPremiumAmount((java.math.BigDecimal) row[6]);
         policy.setStartDate((LocalDate) row[7]);
         policy.setEndDate((LocalDate) row[8]);
-        policy.setStatus(PolicyStatus.valueOf((String) row[9]));
+        policy.setUpdatedDate((LocalDate) row[9]);
+        policy.setStatus(PolicyStatus.valueOf((String) row[10]));
+        policy.setManualFollowUp(Boolean.TRUE.equals(row[11]));
 
         return Optional.of(policy);
     }
@@ -114,11 +206,13 @@ public class PolicyRepositoryImpl implements PolicyRepository {
         entityManager.createNativeQuery("""
             UPDATE policies
             SET end_date = :endDate,
-                status = :status
+                status = :status,
+                UPDATED_DATE = :updatedDate
             WHERE policy_number = :policyNumber
             """)
                 .setParameter("endDate", endDate)
                 .setParameter("status", status.name())
+                .setParameter("updatedDate", LocalDate.now())
                 .setParameter("policyNumber", policyNumber)
                 .executeUpdate();
     }
@@ -141,6 +235,25 @@ public class PolicyRepositoryImpl implements PolicyRepository {
     }
 
     @Override
+    public List<Policy> findPoliciesForReminderDetectionAfterId(
+            Long lastId,
+            int batchSize) {
+
+        return entityManager.createQuery("""
+            SELECT p
+            FROM Policy p
+            WHERE p.id > :lastId
+              AND p.status IN (:active, :expired)
+            ORDER BY p.id
+            """, Policy.class)
+                .setParameter("lastId", lastId)
+                .setParameter("active", PolicyStatus.ACTIVE)
+                .setParameter("expired", PolicyStatus.EXPIRED)
+                .setMaxResults(batchSize)
+                .getResultList();
+    }
+
+    @Override
     public void updatePolicyStatus(String policyNumber, PolicyStatus status) {
 
         entityManager.createNativeQuery("""
@@ -149,6 +262,34 @@ public class PolicyRepositoryImpl implements PolicyRepository {
             WHERE POLICY_NUMBER = :policyNumber
             """)
                 .setParameter("status", status.name())
+                .setParameter("policyNumber", policyNumber)
+                .executeUpdate();
+    }
+
+    @Override
+    public int markLapsedIfExpired(
+            String policyNumber,
+            LocalDate endDateBefore) {
+
+        return entityManager.createNativeQuery("""
+            UPDATE POLICIES
+            SET STATUS = 'LAPSED'
+            WHERE POLICY_NUMBER = :policyNumber
+              AND STATUS = 'EXPIRED'
+              AND END_DATE < :endDateBefore
+            """)
+                .setParameter("policyNumber", policyNumber)
+                .setParameter("endDateBefore", endDateBefore)
+                .executeUpdate();
+    }
+
+    @Override
+    public void flagForManualFollowUp(String policyNumber) {
+        entityManager.createNativeQuery("""
+            UPDATE POLICIES
+            SET MANUAL_FOLLOW_UP = TRUE
+            WHERE POLICY_NUMBER = :policyNumber
+            """)
                 .setParameter("policyNumber", policyNumber)
                 .executeUpdate();
     }
@@ -197,5 +338,35 @@ public class PolicyRepositoryImpl implements PolicyRepository {
                         "status",
                         PolicyStatus.EXPIRED)
                 .getResultList();
+    }
+
+    @Override
+    public List<Policy> findExpiredPoliciesForLapseAfterId(
+            Long lastId,
+            int batchSize) {
+
+        return entityManager.createQuery("""
+            SELECT p
+            FROM Policy p
+            WHERE p.id > :lastId
+              AND p.status = :status
+            ORDER BY p.id
+            """, Policy.class)
+                .setParameter("lastId", lastId)
+                .setParameter("status", PolicyStatus.EXPIRED)
+                .setMaxResults(batchSize)
+                .getResultList();
+    }
+
+    @Override
+    public int markActivePoliciesExpired(LocalDate today) {
+        return entityManager.createNativeQuery("""
+            UPDATE POLICIES
+            SET STATUS = 'EXPIRED'
+            WHERE STATUS = 'ACTIVE'
+              AND END_DATE < :today
+            """)
+                .setParameter("today", today)
+                .executeUpdate();
     }
 }

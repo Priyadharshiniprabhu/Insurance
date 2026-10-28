@@ -6,6 +6,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -32,12 +33,29 @@ public class NotificationLogRepositoryImpl implements NotificationLogRepository 
                     CHANNEL,
                     TIER,
                     EVENT_TIME,
-                    OUTCOME
+                    STATUS,
+                    REASON
                 FROM NOTIFICATION_LOG
                 WHERE POLICY_NUMBER = :policyNumber
                 ORDER BY EVENT_TIME
                 """)
                 .setParameter("policyNumber", policyNumber)
+                .getResultList();
+    }
+
+    @Override
+    public List<Object[]> countOutcomesBetween(
+            LocalDateTime start,
+            LocalDateTime end) {
+        return entityManager.createQuery("""
+                SELECT log.status, log.reason, COUNT(log)
+                FROM NotificationLog log
+                WHERE log.eventTime >= :start
+                  AND log.eventTime < :end
+                GROUP BY log.status, log.reason
+                """, Object[].class)
+                .setParameter("start", start)
+                .setParameter("end", end)
                 .getResultList();
     }
 }

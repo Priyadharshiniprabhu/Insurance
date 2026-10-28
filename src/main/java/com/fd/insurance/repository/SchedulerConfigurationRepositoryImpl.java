@@ -33,6 +33,6 @@ public class SchedulerConfigurationRepositoryImpl
 
     @Override
     public void save(SchedulerConfiguration configuration) {
-        entityManager.persist(configuration);
+        entityManager.merge(configuration);
     }
 }

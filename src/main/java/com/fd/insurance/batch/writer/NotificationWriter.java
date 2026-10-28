@@ -17,6 +17,6 @@ public class NotificationWriter implements ItemWriter<ReminderOutbox> {
 
     @Override
     public void write(Chunk<? extends ReminderOutbox> chunk) {
-        service.processPendingEvents();
+        service.processPendingEvents(chunk.getItems());
     }
 }
