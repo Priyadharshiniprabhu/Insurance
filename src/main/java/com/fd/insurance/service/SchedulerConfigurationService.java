@@ -1,10 +1,14 @@
 package com.fd.insurance.service;
 
+import com.fd.insurance.dto.SchedulerStatusResponse;
 import com.fd.insurance.entity.SchedulerConfiguration;
 import com.fd.insurance.repository.SchedulerConfigurationRepository;
 import jakarta.annotation.PostConstruct;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -36,6 +40,18 @@ public class SchedulerConfigurationService {
                 .map(SchedulerConfiguration::getCronValue)
                 .orElseThrow(() -> new IllegalStateException(
                         "No scheduler configuration found for " + jobName));
+    }
+
+    public List<SchedulerStatusResponse> getSchedulerStatuses() {
+        ZonedDateTime now = ZonedDateTime.now();
+        return List.of(DAILY_REPORT_JOB, RENEWAL_DETECTION_JOB, POLICY_LAPSE_JOB)
+                .stream()
+                .map(name -> {
+                    String cronValue = getCronValue(name);
+                    ZonedDateTime nextRun = CronExpression.parse(cronValue).next(now);
+                    return new SchedulerStatusResponse(name, cronValue, nextRun);
+                })
+                .toList();
     }
 
     private void createIfMissing(String name, String cronValue) {

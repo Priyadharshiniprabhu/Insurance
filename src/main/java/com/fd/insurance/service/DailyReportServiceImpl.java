@@ -76,6 +76,13 @@ public class DailyReportServiceImpl implements DailyReportService {
         }
     }
 
+    @Override
+    public byte[] generateAndReadReport(LocalDate reportDate) throws IOException {
+        generateReport(reportDate);
+        return Files.readAllBytes(reportDirectory.resolve(
+                "daily-report-" + reportDate + ".csv"));
+    }
+
     private void writeFunnelRows(
             BufferedWriter writer,
             LocalDate reportDate,

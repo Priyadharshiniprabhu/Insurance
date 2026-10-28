@@ -10,6 +10,7 @@ public interface ReminderDLQRepository {
     void save(ReminderDLQ dlq);
 
     List<ReminderDLQ> findAll();
+    long countAll();
 
     Optional<ReminderDLQ> findById(Long id);
 

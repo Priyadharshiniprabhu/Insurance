@@ -74,6 +74,24 @@ public class PolicyRepositoryImpl implements PolicyRepository {
     }
 
     @Override
+    public long countRenewalCandidatesDueBetween(
+            LocalDate startDate,
+            LocalDate endDate) {
+        return entityManager.createQuery("""
+                SELECT COUNT(p)
+                FROM Policy p
+                WHERE p.status IN (:active, :renewalDue)
+                  AND p.endDate >= :startDate
+                  AND p.endDate <= :endDate
+                """, Long.class)
+                .setParameter("active", PolicyStatus.ACTIVE)
+                .setParameter("renewalDue", PolicyStatus.RENEWAL_DUE)
+                .setParameter("startDate", startDate)
+                .setParameter("endDate", endDate)
+                .getSingleResult();
+    }
+
+    @Override
     public void save(Policy policy) {
 
         entityManager.createNativeQuery(

@@ -35,6 +35,14 @@ public class ReminderDLQRepositoryImpl implements ReminderDLQRepository {
     }
 
     @Override
+    public long countAll() {
+        return entityManager.createQuery(
+                "SELECT COUNT(d) FROM ReminderDLQ d",
+                Long.class)
+                .getSingleResult();
+    }
+
+    @Override
     public Optional<ReminderDLQ> findById(Long id) {
 
         ReminderDLQ dlq = entityManager.find(ReminderDLQ.class, id);

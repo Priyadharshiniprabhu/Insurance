@@ -15,6 +15,7 @@ public interface PolicyRepository {
     long countActiveExcludingUpdatedDate(LocalDate date);
     long countActiveUpdatedOn(LocalDate date);
     long countOverdue();
+    long countRenewalCandidatesDueBetween(LocalDate startDate, LocalDate endDate);
 
     Optional<Policy> findByPolicyNumber(String policyNumber);
     Optional<Policy> findByPolicyNumberForUpdate(String policyNumber);

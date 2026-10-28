@@ -16,7 +16,7 @@ public class DailyReportTasklet {
     }
 
     public RepeatStatus run() {
-        dailyReportService.generateReport(LocalDate.now().minusDays(1));
+        dailyReportService.generateReport(LocalDate.now());
         return RepeatStatus.FINISHED;
     }
 }
