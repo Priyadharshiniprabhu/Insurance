@@ -11,4 +11,5 @@ public interface NotificationLogRepository {
 //    List<NotificationLog> findByPolicyNumber(String policyNumber);
     List<Object[]> findHistoryByPolicyNumber(String policyNumber);
     List<Object[]> countOutcomesBetween(LocalDateTime start, LocalDateTime end);
+    List<Object[]> findLatestOutcomesByPolicy();
 }

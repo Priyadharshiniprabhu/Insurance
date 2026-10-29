@@ -1,5 +1,8 @@
 package com.fd.insurance.dto;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 public class DashboardSummaryResponse {
 
     private final long totalPolicies;
@@ -53,16 +56,19 @@ public class DashboardSummaryResponse {
         private final long failed;
         private final long invalidContact;
         private final long deadLetters;
+        private final List<LatestPolicyOutcome> latestByPolicy;
 
         public NotificationSummary(
                 long sent,
                 long failed,
                 long invalidContact,
-                long deadLetters) {
+                long deadLetters,
+                List<LatestPolicyOutcome> latestByPolicy) {
             this.sent = sent;
             this.failed = failed;
             this.invalidContact = invalidContact;
             this.deadLetters = deadLetters;
+            this.latestByPolicy = latestByPolicy;
         }
 
         public long getSent() {
@@ -79,6 +85,51 @@ public class DashboardSummaryResponse {
 
         public long getDeadLetters() {
             return deadLetters;
+        }
+
+        public List<LatestPolicyOutcome> getLatestByPolicy() {
+            return latestByPolicy;
+        }
+    }
+
+    public static class LatestPolicyOutcome {
+        private final String policyNumber;
+        private final String status;
+        private final String reason;
+        private final LocalDateTime eventTime;
+        private final boolean inDeadLetterQueue;
+
+        public LatestPolicyOutcome(
+                String policyNumber,
+                String status,
+                String reason,
+                LocalDateTime eventTime,
+                boolean inDeadLetterQueue) {
+            this.policyNumber = policyNumber;
+            this.status = status;
+            this.reason = reason;
+            this.eventTime = eventTime;
+            this.inDeadLetterQueue = inDeadLetterQueue;
+        }
+
+        public String getPolicyNumber() {
+            return policyNumber;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+
+        public LocalDateTime getEventTime() {
+            return eventTime;
+        }
+
+        public boolean isInDeadLetterQueue() {
+            return inDeadLetterQueue;
         }
     }
 

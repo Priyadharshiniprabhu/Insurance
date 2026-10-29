@@ -60,7 +60,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Response> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new Response("Invalid policy type. Allowed values are HEALTH, MOTOR, TERM"));
+                .body(new Response(
+                        "Invalid request body. Check that the JSON is valid and field values use the expected formats."));
     }
 
     @ExceptionHandler(PolicyNotFoundException.class)

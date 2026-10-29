@@ -1,6 +1,7 @@
 package com.fd.insurance.service;
 
 import com.fd.insurance.dto.DashboardSummaryResponse;
+import com.fd.insurance.entity.ReminderDLQ;
 import com.fd.insurance.repository.NotificationLogRepository;
 import com.fd.insurance.repository.PolicyRenewalHistoryRepository;
 import com.fd.insurance.repository.PolicyRepository;
@@ -9,7 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -36,25 +38,51 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfToday = today.atStartOfDay();
         LocalDateTime startOfTomorrow = today.plusDays(1).atStartOfDay();
-        Map<String, Long> outcomeCounts = new HashMap<>();
-        for (Object[] row : notificationLogRepository.countOutcomesBetween(
-                startOfToday, startOfTomorrow)) {
-            String status = row[0].toString();
-            String reason = row[1] == null ? "" : row[1].toString();
-            long count = ((Number) row[2]).longValue();
-            outcomeCounts.merge(status + ":" + reason, count, Long::sum);
+        Map<String, DashboardSummaryResponse.LatestPolicyOutcome> latestByPolicy =
+                new LinkedHashMap<>();
+
+        for (Object[] row : notificationLogRepository.findLatestOutcomesByPolicy()) {
+            String policyNumber = (String) row[0];
+            String status = row[1].toString();
+            String reason = row[2] == null ? null : row[2].toString();
+            LocalDateTime eventTime = (LocalDateTime) row[3];
+            latestByPolicy.put(policyNumber,
+                    new DashboardSummaryResponse.LatestPolicyOutcome(
+                            policyNumber, status, reason, eventTime, false));
         }
-        long invalidContact = outcomeCounts.getOrDefault(
-                "FAILED:INVALID_CONTACT", 0L);
-        long failed = outcomeCounts.entrySet().stream()
-                .filter(entry -> entry.getKey().startsWith("FAILED:"))
-                .filter(entry -> !entry.getKey().equals("FAILED:INVALID_CONTACT"))
-                .mapToLong(Map.Entry::getValue)
-                .sum();
-        long sent = outcomeCounts.entrySet().stream()
-                .filter(entry -> entry.getKey().startsWith("SENT:"))
-                .mapToLong(Map.Entry::getValue)
-                .sum();
+
+        for (ReminderDLQ dlq : reminderDLQRepository.findAll()) {
+            String policyNumber = dlq.getPolicyNumber();
+            if (policyNumber == null) {
+                continue;
+            }
+            DashboardSummaryResponse.LatestPolicyOutcome current =
+                    latestByPolicy.get(policyNumber);
+            if (current == null || !current.isInDeadLetterQueue()
+                    || isAfter(dlq.getMovedAt(), current.getEventTime())) {
+                latestByPolicy.put(policyNumber,
+                        new DashboardSummaryResponse.LatestPolicyOutcome(
+                                policyNumber,
+                                "DEAD_LETTER",
+                                dlq.getLastError() == null ? null : dlq.getLastError().name(),
+                                dlq.getMovedAt(),
+                                true));
+            }
+        }
+
+        long sent = latestByPolicy.values().stream()
+                .filter(outcome -> !outcome.isInDeadLetterQueue())
+                .filter(outcome -> "SENT".equals(outcome.getStatus()))
+                .count();
+        long invalidContact = latestByPolicy.values().stream()
+                .filter(outcome -> !outcome.isInDeadLetterQueue())
+                .filter(outcome -> "INVALID_CONTACT".equals(outcome.getReason()))
+                .count();
+        long deadLetters = latestByPolicy.values().stream()
+                .filter(DashboardSummaryResponse.LatestPolicyOutcome::isInDeadLetterQueue)
+                .count();
+        long failed = latestByPolicy.size() - sent - invalidContact - deadLetters;
+
         return new DashboardSummaryResponse(
                 policyRepository.countAll(),
                 policyRepository.countActiveExcludingUpdatedDate(today),
@@ -73,6 +101,15 @@ public class DashboardServiceImpl implements DashboardService {
                         sent,
                         failed,
                         invalidContact,
-                        reminderDLQRepository.countAll()));
+                        deadLetters,
+                        new ArrayList<>(latestByPolicy.values())));
     }
+
+    private boolean isAfter(LocalDateTime candidate, LocalDateTime current) {
+        if (candidate == null) {
+            return false;
+        }
+        return current == null || candidate.isAfter(current);
+    }
+
 }

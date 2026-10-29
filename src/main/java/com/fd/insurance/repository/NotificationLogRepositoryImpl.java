@@ -58,4 +58,30 @@ public class NotificationLogRepositoryImpl implements NotificationLogRepository 
                 .setParameter("end", end)
                 .getResultList();
     }
+
+    @Override
+    public List<Object[]> findLatestOutcomesByPolicy() {
+        return entityManager.createNativeQuery("""
+                SELECT current_log.POLICY_NUMBER,
+                       current_log.STATUS,
+                       current_log.REASON,
+                       current_log.EVENT_TIME
+                FROM NOTIFICATION_LOG current_log
+                WHERE current_log.POLICY_NUMBER IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM NOTIFICATION_LOG newer_log
+                      WHERE newer_log.POLICY_NUMBER = current_log.POLICY_NUMBER
+                        AND (
+                            (newer_log.EVENT_TIME IS NOT NULL AND current_log.EVENT_TIME IS NULL)
+                            OR newer_log.EVENT_TIME > current_log.EVENT_TIME
+                            OR (
+                                newer_log.EVENT_TIME = current_log.EVENT_TIME
+                                AND newer_log.ID > current_log.ID
+                            )
+                        )
+                  )
+                ORDER BY current_log.POLICY_NUMBER
+                """).getResultList();
+    }
 }

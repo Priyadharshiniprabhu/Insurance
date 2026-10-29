@@ -94,6 +94,14 @@ Password: (empty)
 
 ## REST API
 
+### Dashboard summary
+
+```http
+GET /dashboard/summary
+```
+
+Notification totals are based on each policy's latest notification outcome across its full history, not only today's events. An active dead-letter record takes precedence and each policy is counted once. The `notifications.latestByPolicy` array exposes the policy number, latest status, reason, event time, and whether it is currently in the dead-letter queue. Requeueing removes the active DLQ status from the next summary.
+
 ### Create a policy
 
 ```http
